@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    header span {
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .card .label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .card .change {
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+
+    .change.up   { color: #22c55e; }
+    .change.down { color: #ef4444; }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1a1a2e;
+    }
+
+    /* Simple bar chart */
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 150px;
+    }
+
+    .bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .bar {
+      width: 100%;
+      background: #6366f1;
+      border-radius: 4px 4px 0 0;
+      transition: background 0.2s;
+    }
+
+    .bar:hover { background: #4f46e5; }
+
+    .bar-label {
+      font-size: 0.7rem;
+      color: #888;
+    }
+
+    /* Activity list */
+    .activity-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .activity-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.green  { background: #22c55e; }
+    .dot.blue   { background: #6366f1; }
+    .dot.orange { background: #f97316; }
+    .dot.red    { background: #ef4444; }
+
+    .activity-list .time {
+      margin-left: auto;
+      color: #aaa;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Dashboard</h1>
+    <span id="current-date"></span>
+  </header>
+
+  <div class="container">
+
+    <!-- Summary cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="label">Total Users</div>
+        <div class="value">24,381</div>
+        <div class="change up">&#9650; 12% from last month</div>
+      </div>
+      <div class="card">
+        <div class="label">Revenue</div>
+        <div class="value">$8,240</div>
+        <div class="change up">&#9650; 7% from last month</div>
+      </div>
+      <div class="card">
+        <div class="label">Active Sessions</div>
+        <div class="value">1,053</div>
+        <div class="change down">&#9660; 3% from last week</div>
+      </div>
+      <div class="card">
+        <div class="label">Bounce Rate</div>
+        <div class="value">38%</div>
+        <div class="change up">&#9650; Improved by 5%</div>
+      </div>
+    </div>
+
+    <!-- Charts & activity -->
+    <div class="panels">
+
+      <!-- Bar chart panel -->
+      <div class="panel">
+        <h2>Weekly Visitors</h2>
+        <div class="bar-chart">
+          <div class="bar-wrap">
+            <div class="bar" style="height:60%"></div>
+            <div class="bar-label">Mon</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:80%"></div>
+            <div class="bar-label">Tue</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:50%"></div>
+            <div class="bar-label">Wed</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:90%"></div>
+            <div class="bar-label">Thu</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:70%"></div>
+            <div class="bar-label">Fri</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:40%"></div>
+            <div class="bar-label">Sat</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar" style="height:30%"></div>
+            <div class="bar-label">Sun</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent activity panel -->
+      <div class="panel">
+        <h2>Recent Activity</h2>
+        <ul class="activity-list">
+          <li><span class="dot green"></span> New user registered <span class="time">2m ago</span></li>
+          <li><span class="dot blue"></span> Report generated <span class="time">15m ago</span></li>
+          <li><span class="dot orange"></span> Payment received <span class="time">1h ago</span></li>
+          <li><span class="dot red"></span> Error logged <span class="time">2h ago</span></li>
+          <li><span class="dot green"></span> Deployment successful <span class="time">3h ago</span></li>
+          <li><span class="dot blue"></span> Backup completed <span class="time">5h ago</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const dateEl = document.getElementById('current-date');
+    dateEl.textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  </script>
+
+</body>
+</html>
