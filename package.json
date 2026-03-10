@@ -1,0 +1,11 @@
+{
+  "name": "dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "htmlhint dashboard.html"
+  },
+  "devDependencies": {
+    "htmlhint": "^1.1.4"
+  }
+}
