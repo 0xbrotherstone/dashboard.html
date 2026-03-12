@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080612;
+  --surface: rgba(14, 8, 28, 0.82);
+  --surface2: rgba(20, 12, 40, 0.9);
+  --border: #2d1f5e;
+  --accent: #00ffe0;
+  --accent2: #bf00ff;
+  --accent3: #ff00a8;
+  --text: #e8e4ff;
+  --muted: #6b5fa0;
+  --danger: #ff4545;
+  --green: #4ade80;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --blue: #60a5fa;
+  --pink: #f472b6;
+  --radius: 6px;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
+
+/* BACKDROP */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 105%, rgba(100,0,200,0.4) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 45% at 10% 55%, rgba(0,255,224,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 45% at 90% 25%, rgba(191,0,255,0.12) 0%, transparent 60%),
+    linear-gradient(180deg, #080612 0%, #0d0520 55%, #130830 100%);
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+  pointer-events: none;
+}
+
+.grid-floor { position: fixed; bottom: 0; left: 0; right: 0; height: 45vh; z-index: 0; pointer-events: none; }
+
+/* LAYOUT */
+.app { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* HEADER */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; border-bottom: 1px solid var(--border);
+  background: rgba(8,6,18,0.8); backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 50;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-family: var(--sans); font-weight: 800; font-size: 18px; letter-spacing: -0.5px; text-shadow: 0 0 20px rgba(0,255,224,0.3); }
+.logo span { color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--green);
+  border: 1px solid rgba(74,222,128,0.3); background: rgba(74,222,128,0.06);
+  padding: 3px 8px; border-radius: 20px;
+}
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+.btn-sm {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 6px 12px; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; border: 1px solid;
+}
+.btn-outline { background: none; border-color: var(--border); color: var(--muted); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: rgba(0,255,224,0.1); border-color: rgba(0,255,224,0.3); color: var(--accent); }
+.btn-primary:hover { background: rgba(0,255,224,0.2); }
+.btn-danger { background: rgba(255,69,69,0.1); border-color: rgba(255,69,69,0.3); color: var(--danger); }
+.btn-danger:hover { background: rgba(255,69,69,0.2); }
+
+/* MAIN */
+main { flex: 1; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+/* KPI CARDS */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(45,31,94,0.4), 0 4px 24px rgba(0,0,0,0.4);
+  position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--kpi-color, var(--accent));
+  box-shadow: 0 0 8px var(--kpi-color, var(--accent));
+}
+.kpi-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--kpi-color, var(--accent)); text-shadow: 0 0 20px var(--kpi-color, var(--accent)); line-height: 1; }
+.kpi-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+/* MIDDLE ROW */
+.mid-row { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+
+/* CHART */
+.chart-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(45,31,94,0.4), 0 4px 24px rgba(0,0,0,0.4);
+}
+.card-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
+.chart-wrap { height: 160px; }
+
+/* CHANNEL BREAKDOWN */
+.channels-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(45,31,94,0.4), 0 4px 24px rgba(0,0,0,0.4);
+}
+.channel-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(45,31,94,0.4); }
+.channel-row:last-child { border-bottom: none; }
+.channel-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.channel-name { font-family: var(--mono); font-size: 11px; color: var(--text); flex: 1; }
+.channel-bar-wrap { width: 80px; height: 4px; background: rgba(45,31,94,0.6); border-radius: 2px; overflow: hidden; }
+.channel-bar { height: 100%; border-radius: 2px; }
+.channel-count { font-family: var(--mono); font-size: 10px; color: var(--muted); min-width: 24px; text-align: right; }
+
+/* FEED SECTION */
+.feed-section { display: flex; flex-direction: column; gap: 12px; }
+.feed-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.search-wrap { position: relative; flex: 1; min-width: 200px; }
+.search-wrap input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 8px 12px 8px 34px; outline: none; transition: border-color 0.15s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-wrap input::placeholder { color: var(--muted); }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+
+.filter-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.filter-tab {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 6px 12px; border-radius: var(--radius); cursor: pointer; transition: all 0.15s;
+  background: none; border: 1px solid var(--border); color: var(--muted);
+}
+.filter-tab:hover { border-color: var(--muted); color: var(--text); }
+.filter-tab.active { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+/* EVENT FEED */
+.event-feed { display: flex; flex-direction: column; gap: 6px; }
+.event-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px;
+  backdrop-filter: blur(8px); transition: all 0.15s; animation: slideIn 0.3s ease;
+}
+@keyframes slideIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+.event-card:hover { border-color: var(--muted); background: rgba(20,12,40,0.9); }
+.event-card.important { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 12px rgba(251,191,36,0.1); }
+
+.event-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.event-body { flex: 1; min-width: 0; }
+.event-top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+.event-channel-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.event-channel { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.event-title { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--text); }
+.event-desc { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.event-tags { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+.event-tag {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px; padding: 2px 7px;
+  border-radius: 20px; border: 1px solid var(--border); color: var(--muted); background: rgba(45,31,94,0.3);
+}
+.event-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.event-time { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.event-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.event-card:hover .event-actions { opacity: 1; }
+.action-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 3px; transition: all 0.12s; }
+.action-btn:hover { color: var(--accent); }
+.action-btn.fav.active { color: var(--yellow); }
+.action-btn.del:hover { color: var(--danger); }
+
+.empty-state { text-align: center; padding: 48px; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+
+/* PAGINATION */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; }
+.page-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 5px 12px; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; background: none; border: 1px solid var(--border); color: var(--muted); }
+.page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-info { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* MODAL */
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+.modal-backdrop.open { display: flex; }
+.modal { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 28px; width: 480px; max-width: 90vw; animation: slideUp 0.2s ease; max-height: 80vh; overflow-y: auto; }
+@keyframes slideUp { from { transform: translateY(16px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.modal h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.field input, .field textarea, .field select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--mono); font-size: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s;
+}
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 70px; }
+.field select option { background: #0d0520; }
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+.btn-modal-primary { flex:1; background: var(--accent); color: var(--bg); border: none; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 1px; padding: 10px; cursor: pointer; transition: opacity 0.15s; }
+.btn-modal-primary:hover { opacity: 0.85; }
+.btn-modal-secondary { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: var(--radius); font-family: var(--mono); font-size: 12px; padding: 10px 16px; cursor: pointer; transition: all 0.15s; }
+.btn-modal-secondary:hover { border-color: var(--text); color: var(--text); }
+
+/* API INFO MODAL */
+.api-block { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 12px; }
+.api-block pre { font-family: var(--mono); font-size: 10px; color: var(--accent); overflow-x: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.7; }
+.api-block .api-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.copy-btn { font-family: var(--mono); font-size: 9px; float: right; background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 8px; border-radius: 4px; cursor: pointer; margin-bottom: 6px; transition: all 0.12s; }
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+.toast-item { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; padding: 10px 16px; border-radius: var(--radius); border: 1px solid; animation: toastIn 0.2s ease; backdrop-filter: blur(8px); }
+@keyframes toastIn { from { opacity:0; transform: translateX(16px); } to { opacity:1; transform: translateX(0); } }
+.toast-success { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); color: var(--green); }
+.toast-error { background: rgba(255,69,69,0.1); border-color: rgba(255,69,69,0.3); color: var(--danger); }
+.toast-info { background: rgba(0,255,224,0.1); border-color: rgba(0,255,224,0.3); color: var(--accent); }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .mid-row { grid-template-columns: 1fr; }
+  main { padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="grid-floor"><canvas id="grid-canvas"></canvas></div>
+
+<div class="app">
+  <header>
+    <div class="header-left">
+      <div class="logo">EVENTS<span>.</span>IO</div>
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    </div>
+    <div class="header-right">
+      <button class="btn-sm btn-outline" onclick="openApiModal()">⚡ API</button>
+      <button class="btn-sm btn-outline" onclick="generateDemo()">⚙ Demo Data</button>
+      <button class="btn-sm btn-outline" onclick="exportJSON()">↓ Export</button>
+      <button class="btn-sm btn-primary" onclick="openPostModal()">+ Post Event</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--kpi-color: var(--accent)">
+        <div class="kpi-label">Total Events</div>
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-sub">all time</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--green)">
+        <div class="kpi-label">Today</div>
+        <div class="kpi-value" id="kpi-today">—</div>
+        <div class="kpi-sub">events today</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--accent2)">
+        <div class="kpi-label">Channels</div>
+        <div class="kpi-value" id="kpi-channels">—</div>
+        <div class="kpi-sub">active</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--orange)">
+        <div class="kpi-label">Last Hour</div>
+        <div class="kpi-value" id="kpi-hour">—</div>
+        <div class="kpi-sub">events</div>
+      </div>
+    </div>
+
+    <!-- CHART + CHANNELS -->
+    <div class="mid-row">
+      <div class="chart-card">
+        <div class="card-title">Activity — Last 24 Hours</div>
+        <div class="chart-wrap"><canvas id="activity-chart"></canvas></div>
+      </div>
+      <div class="channels-card">
+        <div class="card-title">By Channel</div>
+        <div id="channel-breakdown">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;padding:20px">No data yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <div class="feed-section">
+      <div class="feed-controls">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="search-input" placeholder="Search events..." oninput="filterFeed()">
+        </div>
+        <div class="filter-tabs" id="filter-tabs">
+          <button class="filter-tab active" data-channel="all" onclick="setChannelFilter('all', this)">All</button>
+        </div>
+        <button class="btn-sm btn-danger" onclick="confirmClearAll()" style="flex-shrink:0">✕ Clear All</button>
+      </div>
+      <div class="event-feed" id="event-feed">
+        <div class="empty-state">No events yet — post one or generate demo data</div>
+      </div>
+      <div class="pagination" id="pagination" style="display:none">
+        <button class="page-btn" id="prev-btn" onclick="changePage(-1)">← Prev</button>
+        <span class="page-info" id="page-info">Page 1</span>
+        <button class="page-btn" id="next-btn" onclick="changePage(1)">Next →</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- POST EVENT MODAL -->
+<div class="modal-backdrop" id="post-modal">
+  <div class="modal">
+    <h3>Post Event</h3>
+    <div class="field">
+      <label>Channel *</label>
+      <input type="text" id="ev-channel" placeholder="e.g. signups, orders, deploys">
+    </div>
+    <div class="field">
+      <label>Title *</label>
+      <input type="text" id="ev-title" placeholder="Event title">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="ev-desc" placeholder="Optional description..."></textarea>
+    </div>
+    <div class="field">
+      <label>Icon</label>
+      <input type="text" id="ev-icon" placeholder="⚡" maxlength="4">
+    </div>
+    <div class="field">
+      <label>Tags (comma separated)</label>
+      <input type="text" id="ev-tags" placeholder="e.g. user, growth, beta">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-secondary" onclick="closeModal('post-modal')">Cancel</button>
+      <button class="btn-modal-primary" onclick="submitEvent()">Post Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- API INFO MODAL -->
+<div class="modal-backdrop" id="api-modal">
+  <div class="modal">
+    <h3>API Reference</h3>
+    <div class="api-block">
+      <div class="api-label">POST Endpoint</div>
+      <button class="copy-btn" onclick="copyText('https://hfxxtvsogcconilepcfw.supabase.co/rest/v1/events')">copy</button>
+      <pre>POST https://hfxxtvsogcconilepcfw.supabase.co/rest/v1/events</pre>
+    </div>
+    <div class="api-block">
+      <div class="api-label">Required Headers</div>
+      <pre>Content-Type: application/json
+apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmeHh0dnNvZ2Njb25pbGVwY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNTcwMDgsImV4cCI6MjA4ODYzMzAwOH0.pvSPRyAc7EghoKJeEZM9hIf0DXHRHveWGjDcpTpdtNQ
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmeHh0dnNvZ2Njb25pbGVwY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNTcwMDgsImV4cCI6MjA4ODYzMzAwOH0.pvSPRyAc7EghoKJeEZM9hIf0DXHRHveWGjDcpTpdtNQ</pre>
+    </div>
+    <div class="api-block">
+      <div class="api-label">Request Body</div>
+      <button class="copy-btn" onclick="copyText(`{\"channel\":\"signups\",\"title\":\"New User\",\"description\":\"A user signed up\",\"icon\":\"👤\",\"tags\":[\"user\",\"growth\"]}`)">copy</button>
+      <pre>{
+  "channel": "signups",
+  "title": "New User",
+  "description": "A user just signed up",
+  "icon": "👤",
+  "tags": ["user", "growth"]
+}</pre>
+    </div>
+    <div class="api-block">
+      <div class="api-label">cURL Example</div>
+      <button class="copy-btn" id="curl-copy-btn" onclick="copyCurl()">copy</button>
+      <pre id="curl-example">curl -X POST \
+  https://hfxxtvsogcconilepcfw.supabase.co/rest/v1/events \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_KEY" \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -d '{"channel":"deploys","title":"Deploy complete","icon":"🚀"}'</pre>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-primary" onclick="closeModal('api-modal')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast" id="toast-container"></div>
+
+<script>
+// ── SUPABASE REST API (no SDK — avoids DataCloneError on file:// URLs) ──
+const SUPABASE_URL = 'https://hfxxtvsogcconilepcfw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmeHh0dnNvZ2Njb25pbGVwY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNTcwMDgsImV4cCI6MjA4ODYzMzAwOH0.pvSPRyAc7EghoKJeEZM9hIf0DXHRHveWGjDcpTpdtNQ';
+
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Prefer': 'return=representation'
+};
+
+async function sbSelect(params = '') {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?${params}`, { headers: HEADERS });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbInsert(body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
+    method: 'POST', headers: HEADERS, body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbDelete(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${id}`, {
+    method: 'DELETE', headers: HEADERS
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function sbDeleteAll() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?id=neq.00000000-0000-0000-0000-000000000000`, {
+    method: 'DELETE', headers: HEADERS
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+// ── STATE ──
+let allEvents = [];
+let filteredEvents = [];
+let activeChannel = 'all';
+let searchQuery = '';
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let favorites = JSON.parse(localStorage.getItem('ev_favs') || '[]');
+let activityChart = null;
+
+// ── CHANNEL COLORS ──
+const CHANNEL_COLORS = [
+  '#00ffe0','#bf00ff','#ff00a8','#4ade80','#fb923c',
+  '#fbbf24','#60a5fa','#f472b6','#a78bfa','#34d399'
+];
+const channelColorMap = {};
+let colorIdx = 0;
+function getChannelColor(ch) {
+  if (!channelColorMap[ch]) channelColorMap[ch] = CHANNEL_COLORS[colorIdx++ % CHANNEL_COLORS.length];
+  return channelColorMap[ch];
+}
+
+// ── INIT ──
+async function init() {
+  await loadEvents();
+  // Poll for new events every 10 seconds (replaces realtime SDK)
+  setInterval(pollNewEvents, 10000);
+}
+
+let lastEventId = null;
+
+async function loadEvents() {
+  try {
+    const data = await sbSelect('order=created_at.desc&limit=500');
+    allEvents = data || [];
+    if (allEvents.length) lastEventId = allEvents[0].id;
+    updateAll();
+  } catch(e) {
+    toast('Failed to load events: ' + e.message, 'error');
+  }
+}
+
+async function pollNewEvents() {
+  try {
+    const data = await sbSelect('order=created_at.desc&limit=20');
+    if (!data || !data.length) return;
+    // Find any events not already in allEvents
+    const existingIds = new Set(allEvents.map(e => e.id));
+    const newEvs = data.filter(e => !existingIds.has(e.id));
+    if (newEvs.length) {
+      newEvs.forEach(e => allEvents.unshift(e));
+      updateAll();
+      newEvs.forEach(e => toast(`New: ${e.title}`, 'success'));
+    }
+  } catch(e) { /* silent poll failure */ }
+}
+
+// ── UPDATE ALL ──
+function updateAll() {
+  updateKPIs();
+  updateChannelFilter();
+  updateChannelBreakdown();
+  updateChart();
+  applyFilters();
+}
+
+// ── KPIs ──
+function updateKPIs() {
+  const total = allEvents.length;
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const hourAgo = new Date(Date.now() - 3600000);
+  const today = allEvents.filter(e => new Date(e.created_at) >= todayStart).length;
+  const lastHour = allEvents.filter(e => new Date(e.created_at) >= hourAgo).length;
+  const channels = new Set(allEvents.map(e => e.channel)).size;
+  document.getElementById('kpi-total').textContent = total.toLocaleString();
+  document.getElementById('kpi-today').textContent = today.toLocaleString();
+  document.getElementById('kpi-channels').textContent = channels;
+  document.getElementById('kpi-hour').textContent = lastHour;
+}
+
+// ── CHANNEL FILTER TABS ──
+function updateChannelFilter() {
+  const channels = [...new Set(allEvents.map(e => e.channel))].sort();
+  const bar = document.getElementById('filter-tabs');
+  bar.innerHTML = `<button class="filter-tab ${activeChannel==='all'?'active':''}" data-channel="all" onclick="setChannelFilter('all',this)">All</button>`;
+  channels.forEach(ch => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-tab' + (activeChannel === ch ? ' active' : '');
+    btn.dataset.channel = ch;
+    btn.textContent = ch;
+    btn.onclick = () => setChannelFilter(ch, btn);
+    bar.appendChild(btn);
+  });
+}
+
+function setChannelFilter(ch, el) {
+  activeChannel = ch;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentPage = 1;
+  applyFilters();
+}
+
+// ── CHANNEL BREAKDOWN ──
+function updateChannelBreakdown() {
+  const counts = {};
+  allEvents.forEach(e => { counts[e.channel] = (counts[e.channel] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const max = sorted[0]?.[1] || 1;
+  const el = document.getElementById('channel-breakdown');
+  if (!sorted.length) { el.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;padding:20px">No data</div>'; return; }
+  el.innerHTML = sorted.map(([ch, count]) => `
+    <div class="channel-row">
+      <div class="channel-dot" style="background:${getChannelColor(ch)};box-shadow:0 0 6px ${getChannelColor(ch)}"></div>
+      <span class="channel-name">${ch}</span>
+      <div class="channel-bar-wrap"><div class="channel-bar" style="width:${(count/max)*100}%;background:${getChannelColor(ch)}"></div></div>
+      <span class="channel-count">${count}</span>
+    </div>`).join('');
+}
+
+// ── CHART ──
+function updateChart() {
+  const hours = [];
+  const counts = [];
+  const now = new Date();
+  for (let i = 23; i >= 0; i--) {
+    const h = new Date(now - i * 3600000);
+    const label = h.getHours().toString().padStart(2,'0') + ':00';
+    const start = new Date(h); start.setMinutes(0,0,0);
+    const end = new Date(start.getTime() + 3600000);
+    hours.push(label);
+    counts.push(allEvents.filter(e => { const t = new Date(e.created_at); return t >= start && t < end; }).length);
+  }
+
+  if (activityChart) activityChart.destroy();
+  const ctx = document.getElementById('activity-chart').getContext('2d');
+  activityChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: hours,
+      datasets: [{
+        data: counts,
+        backgroundColor: 'rgba(0,255,224,0.15)',
+        borderColor: 'rgba(0,255,224,0.6)',
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: 'rgba(14,8,28,0.95)', borderColor: 'rgba(45,31,94,0.8)', borderWidth: 1,
+        titleFont: { family: 'Space Mono', size: 10 }, bodyFont: { family: 'Space Mono', size: 11 },
+        titleColor: '#6b5fa0', bodyColor: '#00ffe0',
+      }},
+      scales: {
+        x: { grid: { color: 'rgba(45,31,94,0.3)' }, ticks: { color: '#6b5fa0', font: { family: 'Space Mono', size: 9 }, maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(45,31,94,0.3)' }, ticks: { color: '#6b5fa0', font: { family: 'Space Mono', size: 9 } }, beginAtZero: true, grace: 1 }
+      }
+    }
+  });
+}
+
+// ── FILTER + RENDER FEED ──
+function filterFeed() {
+  searchQuery = document.getElementById('search-input').value.toLowerCase();
+  currentPage = 1;
+  applyFilters();
+}
+
+function applyFilters() {
+  filteredEvents = allEvents.filter(e => {
+    const matchChannel = activeChannel === 'all' || e.channel === activeChannel;
+    const q = searchQuery;
+    const matchSearch = !q ||
+      (e.title || '').toLowerCase().includes(q) ||
+      (e.description || '').toLowerCase().includes(q) ||
+      (e.channel || '').toLowerCase().includes(q) ||
+      (e.tags || []).some(t => t.toLowerCase().includes(q));
+    return matchChannel && matchSearch;
+  });
+  renderFeed();
+}
+
+function renderFeed() {
+  const feed = document.getElementById('event-feed');
+  const total = filteredEvents.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filteredEvents.slice(start, start + PAGE_SIZE);
+
+  if (!page.length) {
+    feed.innerHTML = '<div class="empty-state">No events found</div>';
+  } else {
+    feed.innerHTML = page.map(ev => renderEvent(ev)).join('');
+  }
+
+  // Pagination
+  const pg = document.getElementById('pagination');
+  if (totalPages > 1) {
+    pg.style.display = 'flex';
+    document.getElementById('prev-btn').disabled = currentPage <= 1;
+    document.getElementById('next-btn').disabled = currentPage >= totalPages;
+    document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages} · ${total} events`;
+  } else {
+    pg.style.display = 'none';
+  }
+}
+
+function renderEvent(ev) {
+  const color = getChannelColor(ev.channel);
+  const isFav = favorites.includes(ev.id);
+  const tags = (ev.tags || []).map(t => `<span class="event-tag">${t}</span>`).join('');
+  return `
+    <div class="event-card${isFav?' important':''}" id="ev-${ev.id}">
+      <div class="event-icon">${ev.icon || '⚡'}</div>
+      <div class="event-body">
+        <div class="event-top">
+          <div class="event-channel-dot" style="background:${color};box-shadow:0 0 5px ${color}"></div>
+          <span class="event-channel">${ev.channel}</span>
+        </div>
+        <div class="event-title">${escHtml(ev.title)}</div>
+        ${ev.description ? `<div class="event-desc">${escHtml(ev.description)}</div>` : ''}
+        ${tags ? `<div class="event-tags">${tags}</div>` : ''}
+      </div>
+      <div class="event-meta">
+        <span class="event-time">${relTime(ev.created_at)}</span>
+        <div class="event-actions">
+          <button class="action-btn fav${isFav?' active':''}" onclick="toggleFav('${ev.id}', this)" title="Favorite">★</button>
+          <button class="action-btn del" onclick="deleteEvent('${ev.id}')" title="Delete">✕</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function changePage(dir) {
+  currentPage += dir;
+  renderFeed();
+  window.scrollTo({ top: document.querySelector('.feed-section').offsetTop - 80, behavior: 'smooth' });
+}
+
+// ── RELATIVE TIME ──
+function relTime(ts) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) {
+    const h = new Date(ts).getHours().toString().padStart(2,'0');
+    const m = new Date(ts).getMinutes().toString().padStart(2,'0');
+    return `today at ${h}:${m}`;
+  }
+  if (s < 172800) {
+    const h = new Date(ts).getHours().toString().padStart(2,'0');
+    const m = new Date(ts).getMinutes().toString().padStart(2,'0');
+    return `yesterday at ${h}:${m}`;
+  }
+  return new Date(ts).toLocaleDateString();
+}
+
+// ── POST EVENT ──
+function openPostModal() { openModal('post-modal'); setTimeout(() => document.getElementById('ev-channel').focus(), 50); }
+
+async function submitEvent() {
+  const channel = document.getElementById('ev-channel').value.trim();
+  const title = document.getElementById('ev-title').value.trim();
+  const description = document.getElementById('ev-desc').value.trim();
+  const icon = document.getElementById('ev-icon').value.trim() || '⚡';
+  const tags = document.getElementById('ev-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+  if (!channel || !title) { toast('Channel and title are required', 'error'); return; }
+
+  try {
+    const data = await sbInsert({ channel, title, description, icon, tags });
+    const inserted = Array.isArray(data) ? data[0] : data;
+    if (inserted) { allEvents.unshift(inserted); updateAll(); }
+    toast('Event posted!', 'success');
+    closeModal('post-modal');
+    ['ev-channel','ev-title','ev-desc','ev-icon','ev-tags'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── DELETE ──
+async function deleteEvent(id) {
+  try {
+    await sbDelete(id);
+    allEvents = allEvents.filter(e => e.id !== id);
+    updateAll();
+  } catch(e) { toast('Delete failed: ' + e.message, 'error'); }
+}
+
+async function confirmClearAll() {
+  if (!confirm('Delete ALL events? This cannot be undone.')) return;
+  try {
+    await sbDeleteAll();
+    allEvents = [];
+    updateAll();
+    toast('All events cleared', 'info');
+  } catch(e) { toast('Clear failed: ' + e.message, 'error'); }
+}
+
+// ── FAVORITES ──
+function toggleFav(id, btn) {
+  const idx = favorites.indexOf(id);
+  if (idx === -1) { favorites.push(id); btn.classList.add('active'); }
+  else { favorites.splice(idx, 1); btn.classList.remove('active'); }
+  localStorage.setItem('ev_favs', JSON.stringify(favorites));
+  const card = document.getElementById('ev-' + id);
+  if (card) card.classList.toggle('important', favorites.includes(id));
+}
+
+// ── DEMO DATA ──
+const DEMO_EVENTS = [
+  // Dev & Bootcamp
+  { channel: 'deploys', title: 'Pushed dashboard.html to GitHub', description: 'Week 1 project live on GitHub Pages', icon: '🚀', tags: ['github', 'bootcamp'] },
+  { channel: 'deploys', title: 'Events dashboard deployed', description: 'Week 2 project pushed to repo', icon: '🚀', tags: ['github', 'bootcamp'] },
+  { channel: 'errors', title: 'Supabase RLS policy blocked insert', description: 'anon role missing explicit grant on events table', icon: '🔥', tags: ['supabase', 'critical'] },
+  { channel: 'commits', title: 'Bootcamp Week 2 complete', description: 'All 9 minimum requirements shipped', icon: '✅', tags: ['bootcamp', 'milestone'] },
+  { channel: 'builds', title: 'GitHub Actions build passed', description: 'All checks green on main branch', icon: '🔧', tags: ['ci', 'infra'] },
+
+  // Crypto / ETH
+  { channel: 'ethereum', title: 'ETH crossed $2,800', description: 'Price up 4.2% in last 24h — watching $3,000 resistance', icon: '⬡', tags: ['price', 'alert'] },
+  { channel: 'defi', title: 'Aave position health dropped', description: 'Health factor at 1.4 — consider adding collateral', icon: '⚠️', tags: ['aave', 'risk'] },
+  { channel: 'transactions', title: 'ETH transfer confirmed', description: '0.5 ETH sent — block 19,482,301', icon: '🔗', tags: ['onchain', 'wallet'] },
+  { channel: 'ethereum', title: 'Base network gas spike', description: 'L2 gas up 3x due to high activity — NFT mint live', icon: '⛽', tags: ['base', 'gas'] },
+
+  // Finance
+  { channel: 'portfolio', title: 'TSLA up 6.8% today', description: 'Earnings beat — EPS $0.72 vs $0.58 expected', icon: '📈', tags: ['tsla', 'earnings'] },
+  { channel: 'portfolio', title: 'GOOGL hit new 52-week high', description: 'Gemini AI announcements driving momentum', icon: '📈', tags: ['googl', 'ai'] },
+  { channel: 'portfolio', title: 'FXAIX dividend reinvested', description: '$12.40 reinvested — total shares: 14.32', icon: '💰', tags: ['fxaix', 'dividend'] },
+  { channel: 'portfolio', title: 'AMZN AWS revenue beat', description: 'Cloud revenue +17% YoY — stock up 4.1% after hours', icon: '📊', tags: ['amzn', 'earnings'] },
+
+  // Personal
+  { channel: 'learning', title: 'Bootcamp lesson completed', description: 'Week 2: REST APIs and real-time data', icon: '🎓', tags: ['bootcamp', 'progress'] },
+  { channel: 'habits', title: 'Morning workout logged', description: '45 min — chest and triceps', icon: '💪', tags: ['health', 'streak'] },
+  { channel: 'goals', title: '7-day coding streak', description: 'Committed code every day this week', icon: '🔥', tags: ['streak', 'coding'] },
+];
+
+async function generateDemo() {
+  toast('Generating demo data...', 'info');
+  try {
+    for (const ev of DEMO_EVENTS) {
+      await sbInsert(ev);
+      await new Promise(r => setTimeout(r, 80));
+    }
+    await loadEvents();
+    toast('Demo data loaded!', 'success');
+  } catch(e) {
+    toast('Demo failed: ' + e.message, 'error');
+  }
+}
+
+// ── EXPORT ──
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(allEvents, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `events-${Date.now()}.json`; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + allEvents.length + ' events', 'success');
+}
+
+// ── API MODAL ──
+function openApiModal() { openModal('api-modal'); }
+
+function copyCurl() {
+  const txt = `curl -X POST \\\n  ${SUPABASE_URL}/rest/v1/events \\\n  -H "Content-Type: application/json" \\\n  -H "apikey: ${SUPABASE_KEY}" \\\n  -H "Authorization: Bearer ${SUPABASE_KEY}" \\\n  -d '{"channel":"deploys","title":"Deploy complete","icon":"🚀"}'`;
+  copyText(txt);
+}
+
+function copyText(txt) {
+  navigator.clipboard.writeText(txt).then(() => toast('Copied!', 'success')).catch(() => toast('Copy failed', 'error'));
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(b => b.addEventListener('click', e => { if (e.target === b) b.classList.remove('open'); }));
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('post-modal').classList.contains('open')) submitEvent(); });
+
+// ── TOAST ──
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── UTILS ──
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── REFRESH RELATIVE TIMES every minute ──
+setInterval(() => { if (filteredEvents.length) renderFeed(); }, 60000);
+
+// ── CYBERKONGZ GRID ──
+(function() {
+  const canvas = document.getElementById('grid-canvas');
+  const container = canvas.parentElement;
+  const ctx = canvas.getContext('2d');
+  function resize() { canvas.width = container.offsetWidth; canvas.height = container.offsetHeight; }
+  resize(); window.addEventListener('resize', resize);
+  let offset = 0;
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const cols = 24, colW = w / cols, rows = 18;
+    offset = (offset + 0.4) % colW;
+    const vx = w/2;
+    for (let r = 0; r <= rows; r++) {
+      const t = r/rows, y = h * Math.pow(t, 1.5), alpha = t * 0.9;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y);
+      ctx.strokeStyle = `rgba(0,255,224,${alpha*0.5})`; ctx.lineWidth = t*1.2; ctx.stroke();
+    }
+    for (let c = 0; c <= cols; c++) {
+      const x = c*colW - offset;
+      ctx.beginPath(); ctx.moveTo(vx+(x-vx)*0.02, 0); ctx.lineTo(x,h);
+      ctx.strokeStyle = `rgba(191,0,255,0.35)`; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(w,0);
+    const g = ctx.createLinearGradient(0,0,w,0);
+    g.addColorStop(0,'transparent'); g.addColorStop(0.3,'rgba(191,0,255,0.6)');
+    g.addColorStop(0.5,'rgba(0,255,224,0.9)'); g.addColorStop(0.7,'rgba(191,0,255,0.6)'); g.addColorStop(1,'transparent');
+    ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.stroke();
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── START ──
+init();
+</script>
+</body>
+</html>
